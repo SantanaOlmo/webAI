@@ -1,0 +1,20 @@
+{
+  "": [
+    ".env",
+    ".gitignore",
+    "main.py",
+    "project_structure.json",
+    "README.md",
+    "readme_manager.py",
+    "resumen.txt",
+    "updateREADME.py",
+    "utils.py"
+  ],
+  "config": [
+    "ai_schema.json"
+  ],
+  "core": [
+    "action_manager.py",
+    "__init__.py"
+  ]
+}

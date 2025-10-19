@@ -1,0 +1,20 @@
+{
+  "instructions": "Responde SIEMPRE en JSON válido. Puedes generar una sola acción o varias acciones a la vez. No uses markdown, texto plano o comillas adicionales fuera del JSON. Cada acción debe incluir 'action' y opcionalmente 'ruta', 'contenido' o 'mensaje'.",
+  "schema": {
+    "action": "string",
+    "ruta": "string o lista de strings (opcional)",
+    "contenido": "string (opcional)",
+    "mensaje": "string (opcional)"
+  },
+  "actions_allowed": ["leer", "escribir", "crear", "borrar", "hablar"],
+  "example_single_action": {
+    "action": "hablar",
+    "mensaje": "Hola Alberto, todo está listo."
+  },
+  "example_multiple_actions": {
+    "actions": [
+      {"action": "leer", "ruta": ["README.md", "utils.py"]},
+      {"action": "hablar", "mensaje": "He leído los archivos principales del proyecto"}
+    ]
+  }
+}

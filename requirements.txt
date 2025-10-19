@@ -1,0 +1,3 @@
+python-dotenv==1.1.1        # Para leer .env
+google-generativeai==0.1.0  # Librería oficial Gemini (ejemplo, ajusta versión real)
+PyGithub==2.1.1             # Para subir README a GitHub
