@@ -1,96 +1,119 @@
-import os
 import json
+from pathlib import Path
 
-def ejecutar_accion(respuesta_json):
+def ejecutar_accion(respuesta_json, base_path=None):
     """
-    Ejecuta la acción o acciones indicadas por la IA.
-    Maneja errores si la respuesta es None o no es JSON válido.
-    Soporta múltiples acciones y convierte listas de un solo elemento en string para rutas.
+    Ejecuta las acciones indicadas por la IA.
+    Soporta:
+      - Acciones simples o listas múltiples.
+      - Rutas como str o lista de strings.
+      - Crear, escribir, leer, borrar y hablar.
+    Ahora usa el campo 'type' ('file' o 'directory') para las acciones de creación.
     """
+    resultado = {"status": "ok", "acciones": []}
+
+    if base_path is None:
+        base_path = Path(__file__).resolve().parent.parent
+
     if not respuesta_json:
-        print("No se recibió respuesta de la IA.")
-        return {"status": "error", "acciones": [{"status": "error", "mensaje": "No se recibió respuesta"}]}
+        print("⚠️ No se recibió respuesta de la IA.")
+        return {"status": "error", "acciones": []}
 
     try:
-        data = json.loads(respuesta_json)
+        data = json.loads(respuesta_json) if isinstance(respuesta_json, str) else respuesta_json
     except json.JSONDecodeError:
-        print(f"IA dice (texto plano): {respuesta_json}")
-        return {"status": "ok", "acciones": [{"status": "ok", "mensaje": respuesta_json}]}
+        print(f"💬 IA dice (texto plano): {respuesta_json}")
+        return {"status": "ok", "acciones": [{"status": "ok", "mensaje": respuesta_json, "contenido": {}}]}
 
-    acciones = data.get("actions")
-    if acciones is None:
-        # Soporta acción única
+    # Soporta tanto formato con "actions" como lista directa o acción única
+    if isinstance(data, dict) and "actions" in data:
+        acciones = data["actions"]
+    elif isinstance(data, list):
+        acciones = data
+    else:
         acciones = [data]
 
-    resumen_acciones = []
-
     for accion in acciones:
-        act = accion.get("action")
-        ruta = accion.get("ruta")
+        accion_res = {"status": "ok", "mensaje": "", "contenido": {}}
+        tipo = accion.get("action")
+        rutas = accion.get("ruta")
         contenido = accion.get("contenido", "")
-        resultado = {"status": "ok", "mensaje": "", "contenido": {}}
+        tipo_elemento = accion.get("type")  # 'file' o 'directory'
 
-        # Convertir lista de un solo elemento a string
-        if isinstance(ruta, list) and len(ruta) == 1:
-            ruta = ruta[0]
+        if isinstance(rutas, str):
+            rutas = [rutas]
+        elif not isinstance(rutas, list):
+            rutas = []
 
-        # Evitar intentar abrir carpetas
-        if act == "leer":
-            if ruta and os.path.isfile(ruta):
+        # 🧠 Procesar acciones con rutas
+        if tipo in ["leer", "crear", "escribir", "borrar"]:
+            for ruta in rutas:
+                if not isinstance(ruta, str):
+                    continue
+
+                ruta_final = (base_path / Path(ruta)).resolve()
+
                 try:
-                    with open(ruta, "r", encoding="utf-8") as f:
-                        resultado["contenido"][ruta] = f.read()
-                    print(f"📄 Contenido de {ruta} leído.")
-                except Exception as e:
-                    resultado["status"] = "error"
-                    resultado["mensaje"] = str(e)
-                    print(f"❌ Error leyendo {ruta}: {e}")
-            else:
-                resultado["status"] = "error"
-                resultado["mensaje"] = f"{ruta} no es un archivo o no existe"
-                print(f"❌ Error leyendo {ruta}: no es un archivo o no existe")
+                    if tipo == "leer":
+                        if ruta_final.exists():
+                            with open(ruta_final, "r", encoding="utf-8") as f:
+                                contenido_archivo = f.read()
+                            print(f"📖 Archivo leído: {ruta_final}")
+                            accion_res["contenido"][str(ruta_final)] = contenido_archivo
+                        else:
+                            raise FileNotFoundError(f"Archivo no encontrado: {ruta_final}")
 
-        elif act in ["escribir", "crear"]:
-            if ruta and isinstance(ruta, str):
-                try:
-                    # Asegurarse de que el directorio exista
-                    os.makedirs(os.path.dirname(ruta) or ".", exist_ok=True)
-                    with open(ruta, "w", encoding="utf-8") as f:
-                        f.write(contenido)
-                    print(f"📄 Archivo {ruta} {'actualizado' if act=='escribir' else 'creado'}.")
-                except Exception as e:
-                    resultado["status"] = "error"
-                    resultado["mensaje"] = str(e)
-                    print(f"❌ Error escribiendo {ruta}: {e}")
-            else:
-                resultado["status"] = "error"
-                resultado["mensaje"] = f"Ruta inválida para acción {act}: {ruta}"
-                print(f"❌ Ruta inválida para acción {act}: {ruta}")
+                    elif tipo in ["crear", "escribir"]:
+                        # ✅ Requiere 'type'
+                        if not tipo_elemento:
+                            raise ValueError(f"La acción '{tipo}' requiere un campo 'type' ('file' o 'directory').")
 
-        elif act == "borrar":
-            if ruta and os.path.isfile(ruta):
-                try:
-                    os.remove(ruta)
-                    print(f"🗑 Archivo {ruta} borrado.")
-                except Exception as e:
-                    resultado["status"] = "error"
-                    resultado["mensaje"] = str(e)
-                    print(f"❌ Error borrando {ruta}: {e}")
-            else:
-                resultado["status"] = "error"
-                resultado["mensaje"] = f"{ruta} no es un archivo o no existe"
-                print(f"❌ Error borrando {ruta}: no es un archivo o no existe")
+                        ruta_final.parent.mkdir(parents=True, exist_ok=True)
 
-        elif act == "hablar":
-            mensaje = accion.get("mensaje", "")
+                        if tipo_elemento == "directory":
+                            ruta_final.mkdir(parents=True, exist_ok=True)
+                            accion_res["mensaje"] = f"📁 Carpeta creada: {ruta_final}"
+
+                        elif tipo_elemento == "file":
+                            with open(ruta_final, "w", encoding="utf-8") as f:
+                                f.write(contenido or "")
+                            accion_res["mensaje"] = f"📝 Archivo {'actualizado' if tipo == 'escribir' else 'creado'}: {ruta_final}"
+
+                        else:
+                            raise ValueError(f"Tipo desconocido: {tipo_elemento}")
+
+                        print(accion_res["mensaje"])
+
+                    elif tipo == "borrar":
+                        if ruta_final.exists():
+                            if ruta_final.is_dir():
+                                for sub in ruta_final.rglob("*"):
+                                    if sub.is_file():
+                                        sub.unlink()
+                                ruta_final.rmdir()
+                                accion_res["mensaje"] = f"🗑️ Carpeta borrada: {ruta_final}"
+                            else:
+                                ruta_final.unlink()
+                                accion_res["mensaje"] = f"🗑️ Archivo borrado: {ruta_final}"
+                            print(accion_res["mensaje"])
+                        else:
+                            raise FileNotFoundError(f"Archivo o carpeta no encontrado: {ruta_final}")
+
+                except Exception as e:
+                    accion_res["status"] = "error"
+                    accion_res["mensaje"] = str(e)
+                    print(f"❌ Error en acción '{tipo}': {e}")
+
+        elif tipo == "hablar":
+            mensaje = accion.get("mensaje") or contenido
             print(f"💬 IA dice: {mensaje}")
-            resultado["mensaje"] = mensaje
+            accion_res["mensaje"] = mensaje
 
         else:
-            print(f"❌ Acción desconocida: {act}")
-            resultado["status"] = "error"
-            resultado["mensaje"] = f"Acción desconocida: {act}"
+            accion_res["status"] = "error"
+            accion_res["mensaje"] = f"Acción desconocida: {tipo}"
+            print(f"❌ {accion_res['mensaje']}")
 
-        resumen_acciones.append(resultado)
+        resultado["acciones"].append(accion_res)
 
-    return {"status": "ok", "acciones": resumen_acciones}
+    return resultado

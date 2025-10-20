@@ -1,20 +1,30 @@
 {
-  "": [
-    ".env",
-    ".gitignore",
-    "main.py",
-    "project_structure.json",
-    "README.md",
-    "readme_manager.py",
-    "resumen.txt",
-    "updateREADME.py",
-    "utils.py"
-  ],
-  "config": [
-    "ai_schema.json"
-  ],
-  "core": [
-    "action_manager.py",
-    "__init__.py"
-  ]
+  "": {
+    "type": "folder",
+    "children": {
+      ".env": { "type": "file" },
+      ".gitignore": { "type": "file" },
+      "main.py": { "type": "file" },
+      "project_structure.json": { "type": "file" },
+      "README.md": { "type": "file" },
+      "readme_manager.py": { "type": "file" },
+      "resumen.txt": { "type": "file" },
+      "updateREADME.py": { "type": "file" },
+      "utils.py": { "type": "file" },
+      "workspace": { "type": "folder", "children": {} }
+    }
+  },
+  "config": {
+    "type": "folder",
+    "children": {
+      "ai_schema.json": { "type": "file" }
+    }
+  },
+  "core": {
+    "type": "folder",
+    "children": {
+      "action_manager.py": { "type": "file" },
+      "__init__.py": { "type": "file" }
+    }
+  }
 }
